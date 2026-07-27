@@ -1,0 +1,31 @@
+{
+  "sources": [
+    {
+      "platform": "Kindle",
+      "items": [
+        {
+          "work": "Harbor",
+          "location": "12",
+          "text": "The tide remembers.",
+          "note": "Theme"
+        },
+        {
+          "work": "Harbor",
+          "location": "12",
+          "text": "The tide remembers.",
+          "note": "Theme"
+        }
+      ]
+    },
+    {
+      "platform": "Kobo",
+      "items": [
+        {
+          "work": "Harbor",
+          "location": "20",
+          "text": "A second line."
+        }
+      ]
+    }
+  ]
+}
