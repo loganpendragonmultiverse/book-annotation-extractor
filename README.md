@@ -10,9 +10,12 @@ Normalize exported highlights and notes from multiple ebook platforms into porta
 python -m pip install .
 annotation-extract examples/sample.json
 annotation-extract examples/sample.json --format json --output report.json
+annotation-extract kobo.csv --adapter kobo-csv --format csv --output annotations.csv
 ```
 
 The example documents the v1 input shape. Existing report files are never overwritten. Source inputs are read-only except where the documented purpose explicitly creates a new output artifact.
+
+Version 1.1 reads the original JSON format plus exported Kindle text/HTML, Kobo CSV, and generic CSV files. Every normalized item includes source provenance. Repeated `--work` and `--platform` filters, date bounds, and `--kind highlight|note` narrow a report. Markdown groups annotations by work, CSV provides a portable table, and duplicate candidates remain visible for review.
 
 ## Privacy and platforms
 
@@ -20,7 +23,7 @@ The tool runs locally and does not upload input or include telemetry. Python 3.1
 
 ## Interpretation boundary
 
-V1 normalizes already exported records; it does not bypass DRM, log into platforms, or recover unavailable annotations.
+The tool only normalizes files the user has already exported. It does not bypass DRM, log into platforms, or recover unavailable annotations.
 
 ## Development
 
@@ -33,6 +36,6 @@ pytest
 python -m build
 ```
 
-The project is feature-complete for its documented v1 scope. Maintenance focuses on correctness, security, compatibility, and well-supported input improvements.
+Release metadata must stay aligned across the package, changelog, GitHub release, and Logan Pendragon Forge catalog.
 
 Part of the [Logan Pendragon Forge open-source collection](https://www.loganpendragonforge.com/open-source/). Licensed under the [MIT License](LICENSE).
