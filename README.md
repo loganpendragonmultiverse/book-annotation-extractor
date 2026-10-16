@@ -39,3 +39,9 @@ python -m build
 Release metadata must stay aligned across the package, changelog, GitHub release, and Logan Pendragon Forge catalog.
 
 Part of the [Logan Pendragon Forge open-source collection](https://www.loganpendragonforge.com/open-source/). Licensed under the [MIT License](LICENSE).
+
+## 1.2.0 - 2026-10-16
+
+Use `annotation-extract "My Clippings.txt" --adapter kindle-clippings --format json` for the supported English Kindle My Clippings text dialect. Each block has a title line (preserved verbatim, including an author in parentheses), `- Your Highlight on Location 12-13 | Added on Thursday, October 15, 2026 10:30:00 AM`, a blank line, multiline body, and a line containing exactly `==========`. `Note` and empty-body `Bookmark` blocks are supported, as is `on page 3 | Location 12-13` metadata. Dates become local ISO timestamps without an invented timezone. Note bodies populate `note`; highlights populate `text`; bookmarks retain their location and type. Malformed blocks fail the import with a numbered diagnostic instead of becoming annotations. The tests/fixtures/My Clippings.txt file is wholly synthetic. Other languages, date layouts and HTML exports are outside this dialect.
+
+`kindle-text` and `kindle-html` retain their legacy line-based behavior for compatibility; they do not parse My Clippings metadata or general HTML. JSON, Kobo/generic CSV and JSON/CSV report output remain supported. Work/platform/date/kind filtering now precedes deduplication, and duplicate review includes only eligible records. `--kind bookmark` selects bookmarks. This tool uses exported local files only, with no DRM access, login or network calls.

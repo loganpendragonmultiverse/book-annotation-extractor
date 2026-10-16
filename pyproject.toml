@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "book-annotation-extractor"
-version = "1.1.0"
+version = "1.2.0"
 description = "Normalize exported highlights and notes from multiple ebook platforms into portable records."
 readme = "README.md"
 requires-python = ">=3.10"
@@ -35,3 +35,6 @@ omit = ["src/*/__main__.py"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "--cov=book_annotation_extractor --cov-branch --cov-report=term-missing --cov-fail-under=90"
+
+[tool.setuptools.data-files]
+"share/doc/book-annotation-extractor" = ["README.md", "CHANGELOG.md", "DEVELOPMENT.md", "TESTING.md"]

@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.2.0 - 2026-10-16
+
+- Added an English Kindle My Clippings adapter for title, metadata, location, date, multiline highlights, notes and bookmarks, with numbered malformed-block errors.
+- Fixed filtering before deduplication so ineligible earlier records cannot hide eligible annotations. Preserved JSON, CSV and legacy line adapters.
+
 ## 1.1.0 - 2026-07-27
 
 - Added Kindle text/HTML, Kobo CSV, and generic CSV import adapters.
