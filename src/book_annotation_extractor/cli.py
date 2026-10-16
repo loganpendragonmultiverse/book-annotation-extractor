@@ -7,6 +7,7 @@ import sys
 from pathlib import Path
 from typing import Any
 
+from .clippings import parse_clippings
 from .core import analyze, render_csv, render_json, render_markdown
 
 
@@ -22,6 +23,10 @@ def _load(path: Path, adapter: str) -> dict[str, Any]:
         platform = "Kobo" if adapter == "kobo-csv" else "CSV"
         return {"sources": [{"platform": platform, "source": path.name, "items": rows}]}
     text = path.read_text(encoding="utf-8")
+    if adapter == "kindle-clippings":
+        return {
+            "sources": [{"platform": "Kindle", "source": path.name, "items": parse_clippings(text)}]
+        }
     items = []
     for block in text.replace("<br>", "\n").replace("</p>", "\n").split("\n"):
         value = block.strip().removeprefix("<p>").strip()
@@ -35,7 +40,14 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("input", type=Path)
     parser.add_argument(
         "--adapter",
-        choices=("json", "generic-csv", "kobo-csv", "kindle-text", "kindle-html"),
+        choices=(
+            "json",
+            "generic-csv",
+            "kobo-csv",
+            "kindle-text",
+            "kindle-html",
+            "kindle-clippings",
+        ),
         default="json",
     )
     parser.add_argument("--format", choices=("markdown", "json", "csv"), default="markdown")
@@ -43,7 +55,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--platform", action="append")
     parser.add_argument("--date-from")
     parser.add_argument("--date-to")
-    parser.add_argument("--kind", choices=("highlight", "note"))
+    parser.add_argument("--kind", choices=("highlight", "note", "bookmark"))
     parser.add_argument("--output", type=Path)
     args = parser.parse_args(argv)
     try:

@@ -29,7 +29,7 @@ def analyze(
         raise TypeError("sources must be a list")
     normalized: list[dict[str, Any]] = []
     duplicates: list[dict[str, Any]] = []
-    seen: dict[tuple[str, str, str], dict[str, Any]] = {}
+    seen: dict[tuple[str, str, str, str, str], dict[str, Any]] = {}
     for source_index, source in enumerate(sources, 1):
         if not isinstance(source, dict):
             raise TypeError(f"source {source_index} must be an object")
@@ -44,13 +44,17 @@ def analyze(
             text = str(item.get("text", item.get("highlight", ""))).strip()
             note = str(item.get("note", "")).strip()
             work = str(item.get("work", item.get("title", ""))).strip()
-            if not text and not note:
+            if not text and not note and item.get("kind") != "bookmark":
                 continue
-            annotation_kind = "note" if note and not text else "highlight"
+            annotation_kind = item.get("kind", "note" if note and not text else "highlight")
+            if annotation_kind not in {"highlight", "note", "bookmark"}:
+                raise ValueError("annotation kind must be highlight, note, or bookmark")
             key = (
                 " ".join(text.casefold().split()),
                 " ".join(note.casefold().split()),
                 work.casefold(),
+                annotation_kind,
+                str(item.get("location", "")) if annotation_kind == "bookmark" else "",
             )
             record = {
                 "platform": platform,
@@ -66,6 +70,13 @@ def analyze(
                     "item_index": item_index,
                 },
             }
+            created = str(record["created_at"] or "")
+            if works and work not in works or platforms and platform not in platforms:
+                continue
+            if date_from and created < date_from or date_to and created > date_to:
+                continue
+            if kind and annotation_kind != kind:
+                continue
             if key in seen:
                 duplicates.append(
                     {
@@ -78,13 +89,6 @@ def analyze(
                 )
                 continue
             seen[key] = record
-            created = str(record["created_at"] or "")
-            if works and work not in works or platforms and platform not in platforms:
-                continue
-            if date_from and created < date_from or date_to and created > date_to:
-                continue
-            if kind and annotation_kind != kind:
-                continue
             normalized.append(record)
     normalized.sort(
         key=lambda item: (
