@@ -68,3 +68,12 @@ The installed wheel includes all four project documents and examples under
 `python -c "import sys; print(sys.prefix)"` to locate that environment. Run the
 installed `annotation-extract` command against the packaged `examples/sample.json`
 or the synthetic `examples/My Clippings.txt` without needing a source checkout.
+
+CSV imports require nonempty, unique headers and the same number of cells in
+every nonblank record. Quoted commas and multiline fields remain supported.
+Ambiguous or malformed CSV fails before report generation instead of discarding
+an earlier column or inventing a missing cell.
+
+Existing output paths, including dangling symbolic links, are refused before
+exclusive file creation. This protects ordinary output collisions; it does not
+promise protection against hostile concurrent file-system changes.

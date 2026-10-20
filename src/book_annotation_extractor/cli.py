@@ -11,6 +11,26 @@ from .clippings import parse_clippings
 from .core import analyze, render_csv, render_json, render_markdown
 
 
+def _csv_rows(path: Path) -> list[dict[str, str]]:
+    with path.open(encoding="utf-8-sig", newline="") as handle:
+        reader = csv.reader(handle, strict=True)
+        headers = next(reader, None)
+        if not headers or any(not field.strip() for field in headers):
+            raise ValueError("CSV requires nonempty column headers")
+        if len(headers) != len({field.strip() for field in headers}):
+            raise ValueError("CSV column headers must be unique")
+        rows = []
+        for row in reader:
+            if not row:
+                continue
+            if len(row) != len(headers):
+                raise ValueError(
+                    f"CSV row ending at line {reader.line_num} has {len(row)} cells; expected {len(headers)}"
+                )
+            rows.append(dict(zip(headers, row, strict=True)))
+        return rows
+
+
 def _load(path: Path, adapter: str) -> dict[str, Any]:
     if adapter == "json":
         value = json.loads(path.read_text(encoding="utf-8"))
@@ -18,8 +38,7 @@ def _load(path: Path, adapter: str) -> dict[str, Any]:
             raise TypeError("JSON input must be an object")
         return value
     if adapter in {"generic-csv", "kobo-csv"}:
-        with path.open(encoding="utf-8-sig", newline="") as handle:
-            rows = list(csv.DictReader(handle))
+        rows = _csv_rows(path)
         platform = "Kobo" if adapter == "kobo-csv" else "CSV"
         return {"sources": [{"platform": platform, "source": path.name, "items": rows}]}
     text = path.read_text(encoding="utf-8")
@@ -75,11 +94,13 @@ def main(argv: list[str] | None = None) -> int:
             else render_markdown(report)
         )
         if args.output:
+            if args.output.exists() or args.output.is_symlink():
+                raise ValueError(f"output already exists: {args.output}")
             with args.output.open("x", encoding="utf-8", newline="") as handle:
                 handle.write(rendered)
         else:
             sys.stdout.write(rendered)
-    except (OSError, UnicodeError, TypeError, ValueError, json.JSONDecodeError) as exc:
+    except (OSError, UnicodeError, TypeError, ValueError, csv.Error, json.JSONDecodeError) as exc:
         print(f"error: {exc}", file=sys.stderr)
         return 2
     return 0
