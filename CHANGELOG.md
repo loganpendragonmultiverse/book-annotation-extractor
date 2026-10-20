@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.2.1 - 2026-10-20
+
+- Reject malformed typed annotation fields without fabricating text.
+- Include complete boundary dates in date-filtered exports and reject invalid bounds.
+- Escape supplied Markdown markup and create report files exclusively.
+
 ## 1.2.0 - 2026-10-16
 
 - Added an English Kindle My Clippings adapter for title, metadata, location, date, multiline highlights, notes and bookmarks, with numbered malformed-block errors.

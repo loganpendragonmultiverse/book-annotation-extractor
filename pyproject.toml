@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "book-annotation-extractor"
-version = "1.2.0"
+version = "1.2.1"
 description = "Normalize exported highlights and notes from multiple ebook platforms into portable records."
 readme = "README.md"
 requires-python = ">=3.10"
@@ -38,3 +38,5 @@ addopts = "--cov=book_annotation_extractor --cov-branch --cov-report=term-missin
 
 [tool.setuptools.data-files]
 "share/doc/book-annotation-extractor" = ["README.md", "CHANGELOG.md", "DEVELOPMENT.md", "TESTING.md"]
+
+"share/doc/book-annotation-extractor/examples" = ["examples/sample.json", "tests/fixtures/My Clippings.txt"]

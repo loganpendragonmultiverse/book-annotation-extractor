@@ -1,18 +1,37 @@
 from __future__ import annotations
 
 import csv
+import html
 import io
 import json
+import re
+from datetime import date
 from typing import Any
 
 PROJECT = "book-annotation-extractor"
 
 
-def _require(data: dict[str, Any], key: str) -> Any:
-    value = data.get(key)
-    if value is None or value == "" or value == []:
-        raise ValueError(f"{key} is required")
-    return value
+def _text(data: dict[str, Any], key: str, fallback: str = "") -> str:
+    value = data.get(key, fallback)
+    if not isinstance(value, str):
+        raise TypeError(f"{key} must be a string")
+    return value.strip()
+
+
+def _boundary(value: str | None, name: str) -> date | None:
+    if value is None:
+        return None
+    if not isinstance(value, str) or not re.fullmatch(r"[0-9]{4}-[0-9]{2}-[0-9]{2}", value):
+        raise ValueError(f"{name} must be a YYYY-MM-DD calendar date")
+    try:
+        return date.fromisoformat(value)
+    except ValueError:
+        raise ValueError(f"{name} must be a valid YYYY-MM-DD calendar date") from None
+
+
+def _markdown(value: str) -> str:
+    escaped = html.escape(value, quote=False)
+    return re.sub(r"([\\`*_{}\[\]()#+.!|>-])", r"\\\1", escaped).replace("\n", "<br>")
 
 
 def analyze(
@@ -24,7 +43,17 @@ def analyze(
     date_to: str | None = None,
     kind: str | None = None,
 ) -> dict[str, Any]:
-    sources = _require(data, "sources")
+    if not isinstance(data, dict):
+        raise TypeError("input must be an object")
+    if "sources" not in data or data["sources"] is None:
+        raise ValueError("sources is required")
+    sources = data["sources"]
+    lower = _boundary(date_from, "date_from")
+    upper = _boundary(date_to, "date_to")
+    if lower and upper and lower > upper:
+        raise ValueError("date_from must not be after date_to")
+    if kind is not None and kind not in {"highlight", "note", "bookmark"}:
+        raise ValueError("annotation kind must be highlight, note, or bookmark")
     if not isinstance(sources, list):
         raise TypeError("sources must be a list")
     normalized: list[dict[str, Any]] = []
@@ -33,37 +62,45 @@ def analyze(
     for source_index, source in enumerate(sources, 1):
         if not isinstance(source, dict):
             raise TypeError(f"source {source_index} must be an object")
-        platform = str(source.get("platform", "unknown"))
-        source_name = str(source.get("source", source.get("filename", f"source-{source_index}")))
+        platform = _text(source, "platform", "unknown")
+        source_name = _text(source, "source", _text(source, "filename", f"source-{source_index}"))
         items = source.get("items", [])
         if not isinstance(items, list):
             raise TypeError(f"source {source_index} items must be a list")
         for item_index, item in enumerate(items, 1):
             if not isinstance(item, dict):
                 raise TypeError("annotation items must be objects")
-            text = str(item.get("text", item.get("highlight", ""))).strip()
-            note = str(item.get("note", "")).strip()
-            work = str(item.get("work", item.get("title", ""))).strip()
-            if not text and not note and item.get("kind") != "bookmark":
-                continue
+            text = _text(item, "text", _text(item, "highlight"))
+            note = _text(item, "note")
+            work = _text(item, "work", _text(item, "title"))
             annotation_kind = item.get("kind", "note" if note and not text else "highlight")
-            if annotation_kind not in {"highlight", "note", "bookmark"}:
+            if not isinstance(annotation_kind, str) or annotation_kind not in {
+                "highlight",
+                "note",
+                "bookmark",
+            }:
                 raise ValueError("annotation kind must be highlight, note, or bookmark")
+            location = _text(item, "location")
+            created_at = item.get("created_at", item.get("date"))
+            if created_at is not None and not isinstance(created_at, str):
+                raise TypeError("created_at must be a string or null")
+            if not text and not note and annotation_kind != "bookmark":
+                continue
             key = (
                 " ".join(text.casefold().split()),
                 " ".join(note.casefold().split()),
                 work.casefold(),
                 annotation_kind,
-                str(item.get("location", "")) if annotation_kind == "bookmark" else "",
+                location if annotation_kind == "bookmark" else "",
             )
             record = {
                 "platform": platform,
                 "work": work,
-                "location": item.get("location", ""),
+                "location": location,
                 "text": text,
                 "note": note,
                 "kind": annotation_kind,
-                "created_at": item.get("created_at", item.get("date")),
+                "created_at": created_at,
                 "provenance": {
                     "source": source_name,
                     "source_index": source_index,
@@ -73,8 +110,13 @@ def analyze(
             created = str(record["created_at"] or "")
             if works and work not in works or platforms and platform not in platforms:
                 continue
-            if date_from and created < date_from or date_to and created > date_to:
-                continue
+            if lower or upper:
+                # Compare the exported local calendar day; never invent a timezone.
+                created_day = _boundary(created[:10], "annotation date") if created else None
+                if created_day is None:
+                    continue
+                if lower and created_day < lower or upper and created_day > upper:
+                    continue
             if kind and annotation_kind != kind:
                 continue
             if key in seen:
@@ -121,18 +163,21 @@ def render_markdown(report: dict[str, Any]) -> str:
     ]
     works = sorted({item["work"] for item in report["annotations"]}, key=str.casefold)
     for work in works:
-        lines.extend([f"## {work or 'Untitled Work'}", ""])
+        lines.extend([f"## {_markdown(work or 'Untitled Work')}", ""])
         for item in report["annotations"]:
             if item["work"] == work:
                 content = item["text"] or item["note"]
-                lines.append(f"- **{item['platform']} / {item['location']}**: {content}")
+                lines.append(
+                    f"- **{_markdown(item['platform'])} / {_markdown(item['location'])}**: {_markdown(content)}"
+                )
                 if item["text"] and item["note"]:
-                    lines.append(f"  - Note: {item['note']}")
+                    lines.append(f"  - Note: {_markdown(item['note'])}")
         lines.append("")
     if report["duplicates"]:
         lines.extend(["## Duplicate Review", ""])
         lines.extend(
-            f"- **{item['work']}**: {item['text'] or item['note']}" for item in report["duplicates"]
+            f"- **{_markdown(item['work'])}**: {_markdown(item['text'] or item['note'])}"
+            for item in report["duplicates"]
         )
     return "\n".join(lines).rstrip() + "\n"
 
