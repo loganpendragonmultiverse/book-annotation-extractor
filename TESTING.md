@@ -17,3 +17,6 @@ My Clippings examples in `share/doc/book-annotation-extractor/examples/`, coveri
 Markdown, JSON, CSV and bounded-date filtering. Repeat after installing the sdist.
 Confirm all four authority documents are installed and match the release source.
 The existing 90% coverage floor and cross-platform protected CI remain required.
+
+`tests/test_output_links.py` checks refusal of existing dangling-link metadata
+on every platform and actual dangling symlinks where creation is supported.

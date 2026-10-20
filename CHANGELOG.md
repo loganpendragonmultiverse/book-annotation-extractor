@@ -2,6 +2,7 @@
 
 ## 1.2.1 - 2026-10-20
 
+- Reject duplicate/blank CSV headers, ragged records and malformed quoting without discarding data.
 - Reject malformed typed annotation fields without fabricating text.
 - Include complete boundary dates in date-filtered exports and reject invalid bounds.
 - Escape supplied Markdown markup and create report files exclusively.
