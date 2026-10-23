@@ -42,7 +42,10 @@ def analyze(
     date_from: str | None = None,
     date_to: str | None = None,
     kind: str | None = None,
+    preserve_occurrences: bool = False,
 ) -> dict[str, Any]:
+    if not isinstance(preserve_occurrences, bool):
+        raise TypeError("preserve_occurrences must be a boolean")
     if not isinstance(data, dict):
         raise TypeError("input must be an object")
     if "sources" not in data or data["sources"] is None:
@@ -93,7 +96,7 @@ def analyze(
                 annotation_kind,
                 location if annotation_kind == "bookmark" else "",
             )
-            record = {
+            record: dict[str, Any] = {
                 "platform": platform,
                 "work": work,
                 "location": location,
@@ -120,6 +123,8 @@ def analyze(
             if kind and annotation_kind != kind:
                 continue
             if key in seen:
+                if preserve_occurrences:
+                    seen[key]["occurrences"].append(record)
                 duplicates.append(
                     {
                         "kept": seen[key]["provenance"],
@@ -130,6 +135,8 @@ def analyze(
                     }
                 )
                 continue
+            if preserve_occurrences:
+                record["occurrences"] = [record.copy()]
             seen[key] = record
             normalized.append(record)
     normalized.sort(
@@ -139,15 +146,24 @@ def analyze(
             str(item["created_at"] or ""),
         )
     )
-    return {
-        "version": 2,
+    report = {
+        "version": 3 if preserve_occurrences else 2,
         "project": PROJECT,
         "annotations": normalized,
         "count": len(normalized),
-        "platforms": sorted({item["platform"] for item in normalized}),
+        "platforms": sorted(
+            {
+                occurrence["platform"]
+                for item in normalized
+                for occurrence in item.get("occurrences", [item])
+            }
+        ),
         "duplicates": duplicates,
         "duplicate_count": len(duplicates),
     }
+    if preserve_occurrences:
+        report["occurrence_count"] = len(normalized) + len(duplicates)
+    return report
 
 
 def render_json(report: dict[str, Any]) -> str:
@@ -161,6 +177,8 @@ def render_markdown(report: dict[str, Any]) -> str:
         f"Annotations: **{report['count']}** - Duplicate candidates: **{report['duplicate_count']}**",
         "",
     ]
+    if "occurrence_count" in report:
+        lines.extend([f"Preserved occurrences: **{report['occurrence_count']}**", ""])
     works = sorted({item["work"] for item in report["annotations"]}, key=str.casefold)
     for work in works:
         lines.extend([f"## {_markdown(work or 'Untitled Work')}", ""])
@@ -172,6 +190,20 @@ def render_markdown(report: dict[str, Any]) -> str:
                 )
                 if item["text"] and item["note"]:
                     lines.append(f"  - Note: {_markdown(item['note'])}")
+                for index, occurrence in enumerate(item.get("occurrences", []), 1):
+                    origin = occurrence["provenance"]
+                    lines.append(
+                        f"  - Occurrence {index}: **{_markdown(occurrence['platform'])} / "
+                        f"{_markdown(occurrence['location'])}**; work: {_markdown(occurrence['work'])}; "
+                        f"source: {_markdown(origin['source'])} "
+                        f"(source {origin['source_index']}, item {origin['item_index']}); "
+                        f"kind: {_markdown(occurrence['kind'])}; "
+                        f"date: {_markdown(str(occurrence['created_at'] or 'not supplied'))}"
+                    )
+                    if occurrence["text"]:
+                        lines.append(f"    - Text: {_markdown(occurrence['text'])}")
+                    if occurrence["note"]:
+                        lines.append(f"    - Note: {_markdown(occurrence['note'])}")
         lines.append("")
     if report["duplicates"]:
         lines.extend(["## Duplicate Review", ""])
@@ -185,10 +217,23 @@ def render_markdown(report: dict[str, Any]) -> str:
 def render_csv(report: dict[str, Any]) -> str:
     output = io.StringIO(newline="")
     fields = ["platform", "work", "location", "kind", "text", "note", "created_at", "source"]
+    preserve = "occurrence_count" in report
+    if preserve:
+        fields.extend(["annotation_index", "occurrence_index", "source_index", "item_index"])
     writer = csv.DictWriter(output, fieldnames=fields, lineterminator="\n")
     writer.writeheader()
-    for item in report["annotations"]:
-        writer.writerow(
-            {**{key: item.get(key, "") for key in fields}, "source": item["provenance"]["source"]}
-        )
+    for annotation_index, item in enumerate(report["annotations"], 1):
+        occurrences = item.get("occurrences", [item]) if preserve else [item]
+        for occurrence_index, occurrence in enumerate(occurrences, 1):
+            origin = occurrence["provenance"]
+            row = {key: occurrence.get(key, "") for key in fields}
+            row["source"] = origin["source"]
+            if preserve:
+                row.update(
+                    annotation_index=annotation_index,
+                    occurrence_index=occurrence_index,
+                    source_index=origin["source_index"],
+                    item_index=origin["item_index"],
+                )
+            writer.writerow(row)
     return output.getvalue()

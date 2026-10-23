@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.3.0 - 2026-10-23
+
+- Add optional preservation of every repeated annotation's platform, location, date and source/item provenance.
+- Export version-3 JSON with grouped occurrences, one CSV row per occurrence, and literal Markdown provenance details.
+- Retain default version-2 output and deduplication behavior; apply existing filters before grouping preserved occurrences.
+
 ## 1.2.1 - 2026-10-20
 
 - Reject duplicate/blank CSV headers, ragged records and malformed quoting without discarding data.

@@ -75,6 +75,11 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--date-from")
     parser.add_argument("--date-to")
     parser.add_argument("--kind", choices=("highlight", "note", "bookmark"))
+    parser.add_argument(
+        "--preserve-occurrences",
+        action="store_true",
+        help="Keep every matching occurrence with its location, date and source provenance.",
+    )
     parser.add_argument("--output", type=Path)
     args = parser.parse_args(argv)
     try:
@@ -85,6 +90,7 @@ def main(argv: list[str] | None = None) -> int:
             date_from=args.date_from,
             date_to=args.date_to,
             kind=args.kind,
+            preserve_occurrences=args.preserve_occurrences,
         )
         rendered = (
             render_json(report)
